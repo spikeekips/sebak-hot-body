@@ -42,8 +42,9 @@ func init() {
 		hotbody.PrintError(goCmd, err)
 	}
 
-	outputFile := currentDirectory + fmt.Sprintf("/result-%s.log", time.Now().Format("20060102150405"))
-	goCmd.Flags().StringVar(&flagResultOutput, "result-output", outputFile, "result output file")
+	now := time.Now().Format("20060102150405")
+	flagResultOutput = currentDirectory + fmt.Sprintf("/hot-body-result-%s.log", now)
+	flagLog = currentDirectory + fmt.Sprintf("/hot-body-%s.log", now)
 
 	goCmd.Flags().StringVar(&flagSEBAKEndpoint, "sebak", flagSEBAKEndpoint, "sebak endpoint")
 	goCmd.Flags().StringVar(&flagLogLevel, "log-level", flagLogLevel, "log level, {crit, error, warn, info, debug}")
@@ -53,6 +54,8 @@ func init() {
 	goCmd.Flags().StringVar(&flagRequestTimeout, "request-timeout", flagRequestTimeout, "timeout for requests")
 	goCmd.Flags().StringVar(&flagConfirmDuration, "confirm-duration", flagConfirmDuration, "duration for checking transaction confirmed")
 	goCmd.Flags().StringVar(&flagTimeout, "timeout", flagTimeout, "timeout for running")
+	goCmd.Flags().IntVar(&flagOperations, "operations", flagOperations, "number of operations in one transaction")
+	goCmd.Flags().StringVar(&flagResultOutput, "result-output", flagResultOutput, "result output file")
 
 	rootCmd.AddCommand(goCmd)
 }
@@ -79,7 +82,10 @@ func parseGoFlags(args []string) {
 		flagSEBAKEndpoint = sebakEndpoint.String()
 	}
 	if flagConcurrentTransaction < 1 {
-		hotbody.PrintFlagsError(goCmd, "--sebak", errors.New("at least bigger than 0"))
+		hotbody.PrintFlagsError(goCmd, "--concurrent", errors.New("at least bigger than 0"))
+	}
+	if flagOperations < 1 {
+		hotbody.PrintFlagsError(goCmd, "--operations", errors.New("at least bigger than 0"))
 	}
 	if len(flagRequestTimeout) < 1 {
 		hotbody.PrintFlagsError(goCmd, "--request-timeout", errors.New("must be given"))
@@ -131,6 +137,7 @@ func parseGoFlags(args []string) {
 	parsedFlags = append(parsedFlags, "\n\ttimeout", flagTimeout)
 	parsedFlags = append(parsedFlags, "\n\tconfirm-duration", flagConfirmDuration)
 	parsedFlags = append(parsedFlags, "\n\tresult-output", flagResultOutput)
+	parsedFlags = append(parsedFlags, "\n\toperations", flagOperations)
 	parsedFlags = append(parsedFlags, "\n", "")
 
 	log.Debug("parsed flags:", parsedFlags...)
@@ -180,6 +187,7 @@ func runGo() {
 		RequestTimeout:  requestTimeout,
 		ConfirmDuration: confirmDuration,
 		ResultOutput:    flagResultOutput,
+		Operations:      flagOperations,
 	}
 
 	var hotter *hotbody.Hotter

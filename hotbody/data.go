@@ -116,8 +116,10 @@ type RunningAccounts struct {
 
 func (r *RunningAccounts) Len() int {
 	var count int
-	r.Range(func(interface{}, interface{}) bool {
-		count++
+	r.Range(func(_ interface{}, v interface{}) bool {
+		if v.(bool) == true {
+			count++
+		}
 		return true
 	})
 
@@ -125,24 +127,16 @@ func (r *RunningAccounts) Len() int {
 }
 
 func (r *RunningAccounts) IsActive(address string) bool {
-	_, ok := r.Load(address)
-	return ok
+	v, ok := r.Load(address)
+	return ok && v.(bool) == true
 }
 
 func (r *RunningAccounts) SetActive(address string) {
-	if r.IsActive(address) {
-		return
-	}
-
 	r.Store(address, true)
 }
 
 func (r *RunningAccounts) SetDeactive(address string) {
-	if !r.IsActive(address) {
-		return
-	}
-
-	r.Delete(address)
+	r.Store(address, false)
 }
 
 func PickKeysRandom(addresses []string, n int, excludes ...string) []string {
@@ -189,4 +183,127 @@ func PickKeysRandom(addresses []string, n int, excludes ...string) []string {
 	}
 
 	return founds
+}
+
+func PickKeysRandom2(addresses []string, n int) []string {
+	if len(addresses) > n {
+		shuffled := make([]string, len(addresses))
+		for i, v := range rand.Perm(len(addresses)) {
+			if i >= n {
+				break
+			}
+
+			shuffled[i] = addresses[v]
+		}
+		return shuffled[:n]
+	}
+
+	return addresses
+}
+
+type Record interface {
+	GetType() string
+	GetElapsed() int64
+	GetError() error
+	GetErrorType() RecordErrorType
+	GetRawError() map[string]interface{}
+}
+
+type RecordErrorType string
+
+const (
+	RecordErrorUnknown    RecordErrorType = "unknown"
+	RecordErrorECONNRESET RecordErrorType = "reset-by-peer"
+)
+
+/*
+{
+    "addresses": [
+        "GBXUE3BYSLTDG74BJSPQKRIBK2KBFJLJVFOZP5LT6VO262UXCXPQMY5V"
+    ],
+    "count": 300,
+    "elapsed": "1.9459782410",
+    "error": null,
+    "type": "create-accounts"
+}
+*/
+type RecordCreateAccounts struct {
+	Type      string                 `json:"type"`
+	Addresses []string               `json:"addresses"`
+	Count     uint64                 `json:"count"`
+	Elapsed   string                 `json:"elapsed"`
+	Error     map[string]interface{} `json:"error"`
+}
+
+func (r RecordCreateAccounts) GetType() string {
+	return r.Type
+}
+
+func (r RecordCreateAccounts) GetElapsed() int64 {
+	p, _ := ParseRecordElapsedTime(r.Elapsed)
+	return p
+}
+
+func (r RecordCreateAccounts) GetRawError() map[string]interface{} {
+	return r.Error
+}
+
+func (r RecordCreateAccounts) GetError() error {
+	if len(r.Error) < 1 {
+		return nil
+	}
+
+	return fmt.Errorf("%v", r.Error)
+}
+
+func (r RecordCreateAccounts) GetErrorType() RecordErrorType {
+	return ParseRecordError(r.Error)
+}
+
+/*
+{
+    "addresses": [
+        "GCOO5YBOIFXELMXBW5QAXQXURTDBBLXZAWQE424DIAWOYEUXG3QTFMLK"
+    ],
+    "amount": "1",
+    "count": 1,
+    "elapsed": "2.1623947930",
+    "error": null,
+    "source": "GDNSUHR7G5LS6WTVHQJULOTEXXCYBPNK7NXB323VEBCEY7LEJWFEEXSN",
+    "type": "payment"
+}
+*/
+type RecordPayment struct {
+	Type      string                 `json:"type"`
+	Addresses []string               `json:"addresses"`
+	Count     uint64                 `json:"count"`
+	Elapsed   string                 `json:"elapsed"`
+	Error     map[string]interface{} `json:"error"`
+	Amount    common.Amount          `json:"amount"`
+	Source    string                 `json:"source"`
+}
+
+func (r RecordPayment) GetType() string {
+	return r.Type
+}
+
+func (r RecordPayment) GetElapsed() int64 {
+	p, _ := ParseRecordElapsedTime(r.Elapsed)
+	return p
+}
+
+func (r RecordPayment) GetRawError() map[string]interface{} {
+	return r.Error
+}
+
+func (r RecordPayment) GetError() error {
+	if len(r.Error) < 1 {
+		return nil
+	}
+
+	return fmt.Errorf("%v", r.Error)
+}
+
+func (r RecordPayment) GetErrorType() RecordErrorType {
+	return ParseRecordError(r.Error)
 }

@@ -12,17 +12,8 @@ type Result struct {
 }
 
 func NewResult(config HotterConfig) (result *Result, err error) {
-	var b []byte
-	if b, err = json.Marshal(map[string]interface{}{"type": "config", "config": config}); err != nil {
-		return
-	}
-
 	var output *os.File
 	if output, err = os.Create(config.ResultOutput); err != nil {
-		return
-	}
-
-	if _, err = fmt.Fprintln(output, string(b)); err != nil {
 		return
 	}
 
@@ -30,7 +21,25 @@ func NewResult(config HotterConfig) (result *Result, err error) {
 		config: config,
 		output: output,
 	}
+
+	result.write(map[string]interface{}{"type": "config", "config": config})
+
 	return
+}
+
+func (r *Result) Close() {
+	r.output.Close()
+}
+
+func (r *Result) write(o interface{}) {
+	b, err := json.Marshal(o)
+	if err != nil {
+		panic(err)
+	}
+
+	if _, err := fmt.Fprintln(r.output, string(b)); err != nil {
+		panic(err)
+	}
 }
 
 func (r *Result) Write(t string, args ...interface{}) {
@@ -59,12 +68,5 @@ func (r *Result) Write(t string, args ...interface{}) {
 		d[key] = v
 	}
 
-	b, err := json.Marshal(d)
-	if err != nil {
-		panic(err)
-	}
-
-	if _, err := fmt.Fprintln(r.output, string(b)); err != nil {
-		panic(err)
-	}
+	r.write(d)
 }

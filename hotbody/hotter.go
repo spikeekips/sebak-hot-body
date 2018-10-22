@@ -2,12 +2,16 @@ package hotbody
 
 import (
 	"fmt"
+	"math"
 	"net"
 	"net/url"
 	"os"
 	"sync"
 	"syscall"
 	"time"
+
+	logging "github.com/inconshreveable/log15"
+	"github.com/stellar/go/keypair"
 
 	"boscoin.io/sebak/lib/common"
 	"boscoin.io/sebak/lib/error"
@@ -16,8 +20,6 @@ import (
 	"boscoin.io/sebak/lib/node"
 	"boscoin.io/sebak/lib/transaction"
 	"boscoin.io/sebak/lib/transaction/operation"
-	logging "github.com/inconshreveable/log15"
-	"github.com/stellar/go/keypair"
 )
 
 var (
@@ -42,6 +44,31 @@ type HotterConfig struct {
 	RequestTimeout  time.Duration `json:"request-timeout"`
 	ConfirmDuration time.Duration `json:"confirm-duration"`
 	ResultOutput    string        `json:"result-output"`
+	Operations      int           `json:"operations"`
+}
+
+func (r HotterConfig) GetType() string {
+	return "config"
+}
+
+func (r HotterConfig) GetElapsed() int64 {
+	return 0
+}
+
+func (r HotterConfig) GetRawError() map[string]interface{} {
+	return map[string]interface{}{}
+}
+
+func (r HotterConfig) GetError() error {
+	return nil
+}
+
+func (r HotterConfig) GetErrorType() RecordErrorType {
+	return RecordErrorUnknown
+}
+
+func (r HotterConfig) Serialize() ([]byte, error) {
+	return common.JSONMarshalIndent(r)
 }
 
 type Hotter struct {
@@ -53,6 +80,7 @@ type Hotter struct {
 	keys            map[string]*keypair.Full
 	createdAccounts []string
 	runningAccounts *RunningAccounts
+	cachedAddresses map[string][]string
 	run             chan string
 }
 
@@ -88,14 +116,16 @@ func (h *Hotter) Start() (err error) {
 		return
 	}
 
-	n := h.T / h.Node.Policy.OperationsLimit
-	if h.T%h.Node.Policy.OperationsLimit > 0 {
+	numberOfAccounts := int(math.Max(float64(h.T), float64(h.Operations))) + 1
+
+	n := numberOfAccounts / h.Node.Policy.OperationsLimit
+	if numberOfAccounts%h.Node.Policy.OperationsLimit > 0 {
 		n += 1
 	}
 	for i := 0; i < n; i++ {
 		l := h.Node.Policy.OperationsLimit
-		if (i+1)*h.Node.Policy.OperationsLimit > h.T {
-			l = h.T % h.Node.Policy.OperationsLimit
+		if (i+1)*h.Node.Policy.OperationsLimit > numberOfAccounts {
+			l = numberOfAccounts % h.Node.Policy.OperationsLimit
 		}
 
 		var targets []string
@@ -111,6 +141,17 @@ func (h *Hotter) Start() (err error) {
 	}
 
 	h.runningAccounts = &RunningAccounts{}
+
+	log.Debug("cached accounts")
+	h.cachedAddresses = map[string][]string{}
+	for _, address := range h.createdAccounts {
+		for _, otherAddress := range h.createdAccounts {
+			if address == otherAddress {
+				continue
+			}
+			h.cachedAddresses[address] = append(h.cachedAddresses[address], otherAddress)
+		}
+	}
 
 	log.Debug("created all accounts", "count", len(h.keys)-1)
 
@@ -160,12 +201,17 @@ func (h *Hotter) Start() (err error) {
 
 	go func() {
 		for {
-			log.Debug("actives", "running", h.runningAccounts.Len())
-			time.Sleep(3 * time.Second)
+			select {
+			case <-stopChan:
+				return
+			default:
+				log.Debug("actives", "running", h.runningAccounts.Len())
+				time.Sleep(1 * time.Second)
+			}
 		}
 	}()
 
-	for _, address := range h.createdAccounts {
+	for _, address := range h.createdAccounts[:h.T] {
 		h.run <- address
 	}
 
@@ -174,18 +220,20 @@ func (h *Hotter) Start() (err error) {
 		log.Debug("will be stopped; waiting for the existing requests closing", "timeout", h.Timeout)
 
 		stopChan <- true
-		return
 	}
 
 	for {
 		if h.runningAccounts.Len() != 0 {
+			time.Sleep(1 * time.Second)
 			continue
 		}
+		log.Debug("will be stopped", "running", h.runningAccounts.Len())
 		break
 	}
 
-	close(h.run)
+	//close(h.run)
 	close(stopChan)
+	h.result.Close()
 
 	return
 }
@@ -271,21 +319,12 @@ func (h *Hotter) createAccounts(sourceKP *keypair.Full, amount common.Amount, ta
 		"uid": common.GenerateUUID(),
 	})
 
-	startTime := time.Now()
-	defer func(t time.Time, l logging.Logger) {
+	defer func(l logging.Logger) {
 		log_.Debug(
 			"done",
-			"elapsed", ElapsedTime(t),
 			"error", err,
 		)
-		h.result.Write(
-			"create-accounts",
-			"elapsed", ElapsedTime(t),
-			"count", len(targets),
-			"addresses", targets,
-			"error", err,
-		)
-	}(startTime, log_)
+	}(log_)
 
 	log_.Debug(
 		"starting",
@@ -325,6 +364,16 @@ func (h *Hotter) createAccounts(sourceKP *keypair.Full, amount common.Amount, ta
 	tx.Sign(sourceKP, []byte(h.Node.Policy.NetworkID))
 	log_.Debug("transaction created", "transaction", tx.GetHash())
 
+	defer func(t time.Time, l logging.Logger) {
+		h.result.Write(
+			"create-accounts",
+			"elapsed", ElapsedTime(t),
+			"count", len(targets),
+			"addresses", targets,
+			"error", err,
+		)
+	}(time.Now(), log_)
+
 	if err = h.sendTransaction(tx); err != nil {
 		log_.Error("failed to send transaction", "error", err)
 		return
@@ -351,24 +400,12 @@ func (h *Hotter) createAccounts(sourceKP *keypair.Full, amount common.Amount, ta
 func (h *Hotter) payment(sourceKP *keypair.Full, amount common.Amount, targets ...string) (err error) {
 	log_ := log.New(logging.Ctx{"m": "payment", "uid": common.GenerateUUID()})
 
-	startTime := time.Now()
-	defer func(t time.Time, l logging.Logger) {
+	defer func(l logging.Logger) {
 		log_.Debug(
 			"done",
-			"elapsed", ElapsedTime(t),
 			"error", err,
 		)
-
-		h.result.Write(
-			"payment",
-			"elapsed", ElapsedTime(t),
-			"count", len(targets),
-			"addresses", targets,
-			"amount", amount,
-			"source", sourceKP.Address(),
-			"error", err,
-		)
-	}(startTime, log_)
+	}(log_)
 
 	log_.Debug(
 		"starting",
@@ -406,6 +443,18 @@ func (h *Hotter) payment(sourceKP *keypair.Full, amount common.Amount, targets .
 
 	tx.Sign(sourceKP, []byte(h.Node.Policy.NetworkID))
 	log_.Debug("transaction created", "transaction", tx.GetHash())
+
+	defer func(t time.Time, l logging.Logger) {
+		h.result.Write(
+			"payment",
+			"elapsed", ElapsedTime(t),
+			"count", len(targets),
+			"addresses", targets,
+			"amount", amount,
+			"source", sourceKP.Address(),
+			"error", err,
+		)
+	}(time.Now(), log_)
 
 	if err = h.sendTransaction(tx); err != nil {
 		log_.Error("failed to send transaction", "error", err)
@@ -455,12 +504,16 @@ func (h *Hotter) sendTransaction(tx transaction.Transaction) (err error) {
 		return
 	}
 
-	for i := 0; i < 3; i++ { // retry up to 3 times
+	retries := 3
+	for i := 0; i < 3; i++ { // retry
 		b, err = h.client.Post(network.UrlPathPrefixNode+"/message", body, nil)
 
 		if err != nil {
-			log_e := log_.New(logging.Ctx{"error": err, "error-type": fmt.Sprintf("%T", err)})
+			if i == retries-1 {
+				break
+			}
 
+			log_e := log_.New(logging.Ctx{"error": err, "error-type": fmt.Sprintf("%T", err)})
 			switch terr := err.(type) {
 			case *url.Error:
 				if nerr, ok := terr.Err.(net.Error); ok && nerr.Timeout() {
@@ -507,11 +560,9 @@ func (h *Hotter) request(address string) (err error) {
 
 	var addresses []string
 	for {
-		/*
-			var limit int = 100
-			addresses = PickKeysRandom(h.createdAccounts, rand.Intn(limit)+1, address)
-		*/
-		addresses = PickKeysRandom(h.createdAccounts, 1, address)
+		//addresses = PickKeysRandom(h.createdAccounts, h.Operations, address)
+		//addresses = PickKeysRandom(h.createdAccounts, 1, address)
+		addresses = PickKeysRandom2(h.cachedAddresses[address], h.Operations)
 		if len(addresses) > 0 {
 			break
 		}

@@ -20,6 +20,7 @@ const (
 	defaultRequestTimeout        string      = "30s"
 	defaultConfirmDuration       string      = "60s"
 	defaultTimeout               string      = "1m"
+	defaultOperations            int         = 1
 )
 
 var (
@@ -32,6 +33,7 @@ var (
 	flagConfirmDuration       string = defaultConfirmDuration
 	flagTimeout               string = defaultTimeout
 	flagResultOutput          string
+	flagOperations            int = defaultOperations
 )
 
 var (

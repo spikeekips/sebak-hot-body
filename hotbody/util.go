@@ -54,12 +54,15 @@ func ParseRecordErrorHTTPProblem(e map[string]interface{}) RecordErrorType {
 
 func ParseRecordErrorNetError(e map[string]interface{}) RecordErrorType {
 	var found bool
-	if _, found = e["Syscall"]; found {
-		var code interface{}
-		if code, found = e["Err"]; !found {
-			return RecordErrorUnknown
-		} else if code.(float64) == float64(54) {
-			return RecordErrorECONNRESET
+	var m map[string]interface{}
+	if m, found = e["Err"].(map[string]interface{}); found {
+		if _, found = m["Syscall"]; found {
+			var code interface{}
+			if code, found = m["Err"]; !found {
+				return RecordErrorUnknown
+			} else if code.(float64) == float64(54) {
+				return RecordErrorECONNRESET
+			}
 		}
 	}
 

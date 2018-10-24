@@ -229,10 +229,13 @@ func runResult() {
 		table.AddRow("", alignKey("block totaltxs"), alignValue(config.Node.Block.TotalTxs))
 	}
 
+	lastTime := records[len(records)-1].GetTime()
+
 	{
 		table.AddSeparator()
 		table.AddRow(alignHead("time"), alignKey("started"), alignValue(FormatISO8601(started)))
-		table.AddRow("", alignKey("ended"), alignValue(FormatISO8601(ended)))
+		table.AddRow("", alignKey("ended"), alignValue(FormatISO8601(lastTime)))
+		table.AddRow("", alignKey("total elapsed"), alignValue(lastTime.Sub(started)))
 	}
 
 	{
@@ -253,8 +256,6 @@ func runResult() {
 		)
 		table.AddRow("", alignKey("max elapsed time"), alignValue(maxElapsedTime/float64(10000000000)))
 		table.AddRow("", alignKey("min elapsed time"), alignValue(minElapsedTime/float64(10000000000)))
-
-		lastTime := records[len(records)-1].GetTime()
 
 		totalSeconds := lastTime.Sub(started).Seconds()
 

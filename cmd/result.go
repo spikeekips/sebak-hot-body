@@ -234,14 +234,16 @@ func runResult() {
 		table.AddRow("", alignKey("max elapsed time"), alignValue(maxElapsedTime/float64(10000000000)))
 		table.AddRow("", alignKey("min elapsed time"), alignValue(minElapsedTime/float64(10000000000)))
 
-		ops := float64((len(records)-countError)*config.Operations) / float64(config.Timeout.Seconds())
-		table.AddRow("", alignKey("OPS"), alignValue(ops))
+		ops := float64((len(records))*config.Operations) / float64(config.Timeout.Seconds())
+		table.AddRow("", alignKey("expected OPS"), alignValue(int(ops)))
+		ops = float64((len(records)-countError)*config.Operations) / float64(config.Timeout.Seconds())
+		table.AddRow("", alignKey("real OPS"), alignValue(int(ops)))
 	}
 
 	{
 		if countError < 1 {
-			fmt.Println("# errors")
-			fmt.Println("no error found")
+			fmt.Fprintln(os.Stdout, "# errors")
+			fmt.Fprintln(os.Stdout, "no error found")
 		} else {
 			table.AddSeparator()
 			var c int
@@ -256,16 +258,19 @@ func runResult() {
 					alignKey(string(errorType)),
 					alignValue(
 						fmt.Sprintf(
-							"%d | %2.5f％",
+							"%d | % 10s",
 							errorCount,
-							float64(errorCount)/float64(countError)*100,
+							fmt.Sprintf(
+								"%.5f％",
+								float64(errorCount)/float64(countError)*100,
+							),
 						),
 					),
 				)
 			}
 		}
 	}
-	fmt.Printf(table.Render())
+	fmt.Fprintf(os.Stdout, table.Render())
 
 	os.Exit(0)
 }

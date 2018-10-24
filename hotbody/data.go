@@ -212,8 +212,11 @@ type Record interface {
 type RecordErrorType string
 
 const (
-	RecordErrorUnknown    RecordErrorType = "unknown"
-	RecordErrorECONNRESET RecordErrorType = "reset-by-peer"
+	RecordErrorUnknown         RecordErrorType = "unknown"
+	RecordErrorECONNRESET      RecordErrorType = "reset-by-peer"
+	RecordErrorTxDoesNotExist  RecordErrorType = "tx-not-found"
+	RecordErrorSameSourceFound RecordErrorType = "same-source-found"
+	RecordErrorNetworkError    RecordErrorType = "network-problem"
 )
 
 /*

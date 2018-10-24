@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"sync"
+	"time"
 
 	"boscoin.io/sebak/lib/common"
 )
@@ -202,6 +203,7 @@ func PickKeysRandom2(addresses []string, n int) []string {
 }
 
 type Record interface {
+	GetTime() time.Time
 	GetType() string
 	GetElapsed() int64
 	GetError() error
@@ -231,11 +233,17 @@ const (
 }
 */
 type RecordCreateAccounts struct {
+	Time      string                 `json:"time"`
 	Type      string                 `json:"type"`
 	Addresses []string               `json:"addresses"`
 	Count     uint64                 `json:"count"`
 	Elapsed   string                 `json:"elapsed"`
 	Error     map[string]interface{} `json:"error"`
+}
+
+func (r RecordCreateAccounts) GetTime() time.Time {
+	t, _ := common.ParseISO8601(r.Time)
+	return t
 }
 
 func (r RecordCreateAccounts) GetType() string {
@@ -277,6 +285,7 @@ func (r RecordCreateAccounts) GetErrorType() RecordErrorType {
 }
 */
 type RecordPayment struct {
+	Time      string                 `json:"time"`
 	Type      string                 `json:"type"`
 	Addresses []string               `json:"addresses"`
 	Count     uint64                 `json:"count"`
@@ -284,6 +293,11 @@ type RecordPayment struct {
 	Error     map[string]interface{} `json:"error"`
 	Amount    common.Amount          `json:"amount"`
 	Source    string                 `json:"source"`
+}
+
+func (r RecordPayment) GetTime() time.Time {
+	t, _ := common.ParseISO8601(r.Time)
+	return t
 }
 
 func (r RecordPayment) GetType() string {

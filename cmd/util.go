@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	logging "github.com/inconshreveable/log15"
 	"github.com/spf13/cobra"
@@ -36,4 +37,8 @@ func parseLogging(c *cobra.Command) {
 
 	log.SetHandler(logging.LvlFilterHandler(logLevel, logging.CallerFileHandler(logHandler)))
 	hotbody.SetLogging(logLevel, logHandler)
+}
+
+func FormatISO8601(t time.Time) string {
+	return t.Format("2006-01-02T15:04:05.000000000")
 }

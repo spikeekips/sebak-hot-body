@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+
+	"boscoin.io/sebak/lib/common"
 )
 
 type Result struct {
@@ -22,7 +24,7 @@ func NewResult(config HotterConfig) (result *Result, err error) {
 		output: output,
 	}
 
-	result.write(map[string]interface{}{"type": "config", "config": config})
+	result.write(map[string]interface{}{"type": "config", "config": config, "time": common.NowISO8601()})
 
 	return
 }
@@ -49,6 +51,7 @@ func (r *Result) Write(t string, args ...interface{}) {
 
 	d := map[string]interface{}{
 		"type": t,
+		"time": common.NowISO8601(),
 	}
 
 	for i := 0; i < len(args)-1; i = i + 2 {

@@ -47,6 +47,10 @@ type HotterConfig struct {
 	Operations      int           `json:"operations"`
 }
 
+func (r HotterConfig) GetTime() time.Time {
+	return time.Time{}
+}
+
 func (r HotterConfig) GetType() string {
 	return "config"
 }
@@ -211,6 +215,7 @@ func (h *Hotter) Start() (err error) {
 		}
 	}()
 
+	h.result.Write("started")
 	for _, address := range h.createdAccounts[:h.T] {
 		h.run <- address
 	}
@@ -230,6 +235,8 @@ func (h *Hotter) Start() (err error) {
 		log.Debug("will be stopped", "running", h.runningAccounts.Len())
 		break
 	}
+
+	h.result.Write("ended")
 
 	//close(h.run)
 	close(stopChan)

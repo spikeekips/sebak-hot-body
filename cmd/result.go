@@ -6,15 +6,20 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"time"
 
 	"github.com/apcera/termtables"
 	"github.com/spf13/cobra"
 	"github.com/spikeekips/sebak-hot-body/hotbody"
+
+	"boscoin.io/sebak/lib/common"
 )
 
 var (
 	resultCmd    *cobra.Command
 	resultOutput *os.File
+	started      time.Time
+	ended        time.Time
 )
 
 func init() {
@@ -71,6 +76,12 @@ func loadLine(l string) (record hotbody.Record, err error) {
 
 	recordType := d["type"].(string)
 	switch recordType {
+	case "started":
+		started, _ = common.ParseISO8601(d["time"].(string))
+		return
+	case "ended":
+		ended, _ = common.ParseISO8601(d["time"].(string))
+		return
 	case "config":
 		var b []byte
 		if b, err = json.Marshal(d["config"]); err != nil {
@@ -132,6 +143,8 @@ func runResult() {
 
 		if record, err = loadLine(s); err != nil {
 			hotbody.PrintError(resultCmd, fmt.Errorf("something wrong to read <result output>; %v; %v", err, s))
+		} else if record == nil {
+			continue
 		}
 
 		records = append(records, record)
@@ -218,7 +231,14 @@ func runResult() {
 
 	{
 		table.AddSeparator()
+		table.AddRow(alignHead("time"), alignKey("started"), alignValue(FormatISO8601(started)))
+		table.AddRow("", alignKey("ended"), alignValue(FormatISO8601(ended)))
+	}
+
+	{
+		table.AddSeparator()
 		table.AddRow(alignHead("result"), alignKey("# requests"), alignValue(len(records)))
+		table.AddRow("", alignKey("# operations"), alignValue(len(records)*config.Operations))
 		table.AddRow(
 			"",
 			alignKey("error rates"),
@@ -234,18 +254,21 @@ func runResult() {
 		table.AddRow("", alignKey("max elapsed time"), alignValue(maxElapsedTime/float64(10000000000)))
 		table.AddRow("", alignKey("min elapsed time"), alignValue(minElapsedTime/float64(10000000000)))
 
-		ops := float64((len(records))*config.Operations) / float64(config.Timeout.Seconds())
+		lastTime := records[len(records)-1].GetTime()
+
+		totalSeconds := lastTime.Sub(started).Seconds()
+
+		ops := float64((len(records))*config.Operations) / float64(totalSeconds)
 		table.AddRow("", alignKey("expected OPS"), alignValue(int(ops)))
-		ops = float64((len(records)-countError)*config.Operations) / float64(config.Timeout.Seconds())
+		ops = float64((len(records)-countError)*config.Operations) / float64(totalSeconds)
 		table.AddRow("", alignKey("real OPS"), alignValue(int(ops)))
 	}
 
 	{
+		table.AddSeparator()
 		if countError < 1 {
-			fmt.Fprintln(os.Stdout, "# errors")
-			fmt.Fprintln(os.Stdout, "no error found")
+			table.AddRow(alignHead("error"), alignKey("no error"), "")
 		} else {
-			table.AddSeparator()
 			var c int
 			for errorType, errorCount := range errorTypes {
 				h := ""

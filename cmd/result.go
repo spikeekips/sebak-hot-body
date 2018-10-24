@@ -146,6 +146,9 @@ func runResult() {
 		} else if record == nil {
 			continue
 		}
+		if record.GetType() != "payment" {
+			continue
+		}
 
 		records = append(records, record)
 	}

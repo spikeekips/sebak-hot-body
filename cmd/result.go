@@ -25,7 +25,7 @@ var (
 
 func init() {
 	resultCmd = &cobra.Command{
-		Use:   "result <result output>",
+		Use:   "result <result log>",
 		Short: "Parse result",
 		Run: func(c *cobra.Command, args []string) {
 			parseResultFlags(args)
@@ -47,12 +47,12 @@ func parseResultFlags(args []string) {
 	setLogging()
 
 	if len(args) < 1 {
-		printError(resultCmd, fmt.Errorf("<result output> is missing"))
+		printError(resultCmd, fmt.Errorf("<result log> is missing"))
 	}
 	flagResultOutput = args[0]
 
 	if resultOutput, err = os.Open(flagResultOutput); err != nil {
-		printError(resultCmd, fmt.Errorf("failed to open <result output>; %v", err))
+		printError(resultCmd, fmt.Errorf("failed to open <result log>; %v", err))
 	}
 
 	parsedFlags := []interface{}{}
@@ -132,7 +132,7 @@ func runResult() {
 
 	var record hotbody.Record
 	if record, err = loadLine(headLine); err != nil {
-		printError(resultCmd, fmt.Errorf("something wrong to read <result output>; %v; %v", err, headLine))
+		printError(resultCmd, fmt.Errorf("something wrong to read <result log>; %v; %v", err, headLine))
 	} else {
 		config = record.(hotbody.HotterConfig)
 	}
@@ -144,7 +144,7 @@ func runResult() {
 		s := sc.Text()
 
 		if record, err = loadLine(s); err != nil {
-			printError(resultCmd, fmt.Errorf("something wrong to read <result output>; %v; %v", err, s))
+			printError(resultCmd, fmt.Errorf("something wrong to read <result log>; %v; %v", err, s))
 		} else if record == nil {
 			continue
 		}
@@ -162,7 +162,7 @@ func runResult() {
 	}
 
 	if err = sc.Err(); err != nil {
-		printError(resultCmd, fmt.Errorf("something wrong to read <result output>; %v", err))
+		printError(resultCmd, fmt.Errorf("something wrong to read <result log>; %v", err))
 	}
 
 	var maxElapsedTime float64

@@ -61,33 +61,52 @@ Flags:
 
 ```
 $ ./sebak-hot-body result hot-body-result-20181022133321.log
-+--------------+----------------------+---------------------------------+
-| * config     |         testing time |                          10m0s  |
-|              |  concurrent requests |                           2000  |
-|              |      initial account |  GDMBBEFF63J3K...P3R7FNPOBPCOM  |
-|              |      request timeout |                           1m0s  |
-|              |     confirm duration |                           1m0s  |
-|              |           operations |                            100  |
-+--------------+----------------------+---------------------------------+
-| * network    |           network id |             sebak-test-network  |
-|              |      initial balance |           10000000000000000000  |
-|              |           block time |                            10s  |
-|              |         base reserve |                        1000000  |
-|              |             base fee |                          10000  |
-+--------------+----------------------+---------------------------------+
-| * node       |             endpoint |         http://localhost:12345  |
-|              |              address |  GCPQRIR6PGZEW...XC64U7DURAJDB  |
-|              |                state |                      CONSENSUS  |
-|              |         block height |                              2  |
-|              |           block hash |  GV6djNAvsBK8A...6VQvwuBFgdoth  |
-|              |       block totaltxs |                              1  |
-+--------------+----------------------+---------------------------------+
-| * result     |           # requests |                         385200  |
-|              |          error rates |             4％ (15408/385200)  |
-|              |     max elapsed time |                  64.1662369370  |
-|              |     min elapsed time |                   2.2988145110  |
-|              |                  OPS |                3210.6666666667  |
-+--------------+----------------------+---------------------------------+
-| * error      |      network-problem |             15408 | 100.00000％ |
-+--------------+----------------------+---------------------------------+
++---------------+----------------------+---------------------------------+
+| * config      |         testing time |                           3m0s  |
+|               |  concurrent requests |                            100  |
+|               |      initial account |  GAPYEQH7MC5SG...H5G3KDRJ66IQQ  |
+|               |      request timeout |                            30s  |
+|               |     confirm duration |                           1m0s  |
+|               |           operations |                             50  |
++---------------+----------------------+---------------------------------+
+| * network     |           network id |             test sebak-network  |
+|               |      initial balance |            1000000000000000000  |
+|               |           block time |                             5s  |
+|               |         base reserve |                        1000000  |
+|               |             base fee |                          10000  |
++---------------+----------------------+---------------------------------+
+| * node        |             endpoint |    https://172.31.25.219:12001  |
+|               |              address |  GAQXW2KFRUCC7...IZTILTT4AN3XW  |
+|               |                state |                      CONSENSUS  |
+|               |         block height |                            382  |
+|               |           block hash |  8vryhacYGGRqc...tw2xrSNfxeXpG  |
+|               |       block totaltxs |                          10777  |
+|               |       block totalops |                         520616  |
++---------------+----------------------+---------------------------------+
+| * time        |              started |  2018-11-04T16:36:35.275133000  |
+|               |                ended |  2018-11-04T16:39:42.161060000  |
+|               |        total elapsed |                    3m6.885927s  |
++---------------+----------------------+---------------------------------+
+| * result      |           # requests |                           3239  |
+|               |         # operations |                         161950  |
+|               |          error rates |              0.00000％ (0/3239) |
+|               |     max elapsed time |                  30.0496222300  |
+|               |     min elapsed time |                   0.6617497240  |
+|               |         distribution |                                 |
+|               |                      |        0-5 : 58.47484％ /  1894 |
+|               |                      |        5-10: 35.53566％ /  1151 |
+|               |                      |       10-15:  4.87805％ /   158 |
+|               |                      |       15-20:  0.80272％ /    26 |
+|               |                      |       20-25:  0.24699％ /     8 |
+|               |                      |       25-30:  0.03087％ /     1 |
+|               |                      |       30-35:  0.03087％ /     1 |
+|               |                      |       35-40:  0.00000％ /     0 |
+|               |         expected OPS |                            866  |
+|               |             real OPS |                            866  |
++---------------+----------------------+---------------------------------+
+| * error       |             no error |                                 |
++---------------+----------------------+---------------------------------+
+| * sebak-error |      sebak-error-133 |                56 |  70.00000％ |
+|               |      sebak-error-176 |                24 |  30.00000％ |
++---------------+----------------------+---------------------------------+
 ```

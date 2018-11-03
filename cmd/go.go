@@ -9,13 +9,12 @@ import (
 	"path/filepath"
 	"time"
 
-	logging "github.com/inconshreveable/log15"
-	"github.com/spf13/cobra"
-	"github.com/spikeekips/sebak-hot-body/hotbody"
-	"github.com/stellar/go/keypair"
-
 	"boscoin.io/sebak/lib/common"
 	"boscoin.io/sebak/lib/node"
+	"github.com/spf13/cobra"
+	"github.com/stellar/go/keypair"
+
+	"github.com/spikeekips/sebak-hot-body/hotbody"
 )
 
 var (
@@ -36,15 +35,15 @@ func init() {
 	var err error
 	var currentDirectory string
 	if currentDirectory, err = os.Getwd(); err != nil {
-		hotbody.PrintError(goCmd, err)
+		printError(goCmd, err)
 	}
 	if currentDirectory, err = filepath.Abs(currentDirectory); err != nil {
-		hotbody.PrintError(goCmd, err)
+		printError(goCmd, err)
 	}
 
 	now := time.Now().Format("20060102150405")
-	flagResultOutput = currentDirectory + fmt.Sprintf("/hot-body-result-%s.log", now)
-	flagLog = currentDirectory + fmt.Sprintf("/hot-body-%s.log", now)
+	flagResultOutput = filepath.Join(currentDirectory, fmt.Sprintf("hot-body-result-%s.log", now))
+	flagLog = filepath.Join(currentDirectory, fmt.Sprintf("hot-body-%s.log", now))
 
 	goCmd.Flags().StringVar(&flagSEBAKEndpoint, "sebak", flagSEBAKEndpoint, "sebak endpoint")
 	goCmd.Flags().StringVar(&flagLogLevel, "log-level", flagLogLevel, "log level, {crit, error, warn, info, debug}")
@@ -64,68 +63,46 @@ func parseGoFlags(args []string) {
 	var err error
 
 	if len(args) < 1 {
-		hotbody.PrintError(goCmd, fmt.Errorf("<secret seed> is missing"))
+		printError(goCmd, fmt.Errorf("<secret seed> is missing"))
 	}
 	if parsedKP, err := keypair.Parse(args[0]); err != nil {
-		hotbody.PrintError(goCmd, fmt.Errorf("invalid <secret seed>: %v", err))
+		printError(goCmd, fmt.Errorf("invalid <secret seed>: %v", err))
 	} else {
 		var ok bool
 		if kp, ok = parsedKP.(*keypair.Full); !ok {
-			hotbody.PrintError(goCmd, fmt.Errorf("invalid <secret seed>: not secret seed"))
+			printError(goCmd, fmt.Errorf("invalid <secret seed>: not secret seed"))
 		}
 	}
 
 	if p, err := common.ParseEndpoint(flagSEBAKEndpoint); err != nil {
-		hotbody.PrintFlagsError(goCmd, "--sebak", err)
+		printFlagsError(goCmd, "--sebak", err)
 	} else {
 		sebakEndpoint = p
 		flagSEBAKEndpoint = sebakEndpoint.String()
 	}
 	if flagConcurrentTransaction < 1 {
-		hotbody.PrintFlagsError(goCmd, "--concurrent", errors.New("at least bigger than 0"))
+		printFlagsError(goCmd, "--concurrent", errors.New("at least bigger than 0"))
 	}
 	if flagOperations < 1 {
-		hotbody.PrintFlagsError(goCmd, "--operations", errors.New("at least bigger than 0"))
+		printFlagsError(goCmd, "--operations", errors.New("at least bigger than 0"))
 	}
 	if len(flagRequestTimeout) < 1 {
-		hotbody.PrintFlagsError(goCmd, "--request-timeout", errors.New("must be given"))
+		printFlagsError(goCmd, "--request-timeout", errors.New("must be given"))
 	} else if requestTimeout, err = time.ParseDuration(flagRequestTimeout); err != nil {
-		hotbody.PrintFlagsError(goCmd, "--request-timeout", err)
+		printFlagsError(goCmd, "--request-timeout", err)
 	}
 	if len(flagConfirmDuration) < 1 {
-		hotbody.PrintFlagsError(goCmd, "--confirm-duration", errors.New("must be given"))
+		printFlagsError(goCmd, "--confirm-duration", errors.New("must be given"))
 	} else if confirmDuration, err = time.ParseDuration(flagConfirmDuration); err != nil {
-		hotbody.PrintFlagsError(goCmd, "--confirm-duration", err)
+		printFlagsError(goCmd, "--confirm-duration", err)
 	}
 	if len(flagTimeout) < 1 {
-		hotbody.PrintFlagsError(goCmd, "--timeout", errors.New("must be given"))
+		printFlagsError(goCmd, "--timeout", errors.New("must be given"))
 	} else if timeout, err = time.ParseDuration(flagTimeout); err != nil {
-		hotbody.PrintFlagsError(goCmd, "--timeout", err)
+		printFlagsError(goCmd, "--timeout", err)
 	}
 
-	if logLevel, err = logging.LvlFromString(flagLogLevel); err != nil {
-		hotbody.PrintFlagsError(goCmd, "--log-level", err)
-	}
-
-	var logFormatter logging.Format
-	switch flagLogFormat {
-	case "terminal":
-		logFormatter = logging.TerminalFormat()
-	case "json":
-		logFormatter = common.JsonFormatEx(false, true)
-	default:
-		hotbody.PrintFlagsError(goCmd, "--log-format", fmt.Errorf("'%s'", flagLogFormat))
-	}
-
-	logHandler := logging.StreamHandler(os.Stdout, logFormatter)
-	if len(flagLog) > 0 {
-		if logHandler, err = logging.FileHandler(flagLog, logFormatter); err != nil {
-			hotbody.PrintFlagsError(goCmd, "--log", err)
-		}
-	}
-
-	log.SetHandler(logging.LvlFilterHandler(logLevel, logging.CallerFileHandler(logHandler)))
-	hotbody.SetLogging(logLevel, logHandler)
+	setLogging()
 
 	parsedFlags := []interface{}{}
 	parsedFlags = append(parsedFlags, "\n\tsebak", flagSEBAKEndpoint)
@@ -159,17 +136,17 @@ func runGo() {
 		headers,
 	)
 	if err != nil {
-		hotbody.PrintError(goCmd, fmt.Errorf("failed to create HTTP2Client: %v", err))
+		printError(goCmd, fmt.Errorf("failed to create HTTP2Client: %v", err))
 	}
 	client.Transport().MaxIdleConnsPerHost = flagConcurrentTransaction
 
 	var b []byte
 	if b, err = client.Get("/", nil); err != nil {
-		hotbody.PrintFlagsError(goCmd, "--sebak", err)
+		printFlagsError(goCmd, "--sebak", err)
 	}
 
 	if nodeInfo, err = node.NewNodeInfoFromJSON(b); err != nil {
-		hotbody.PrintError(goCmd, fmt.Errorf("failed to parse node info response: %v", err))
+		printError(goCmd, fmt.Errorf("failed to parse node info response: %v", err))
 	}
 	log.Debug("sebak info", "sebak", sebakEndpoint.String())
 	log.Debug(fmt.Sprintf(
@@ -193,11 +170,11 @@ func runGo() {
 	var hotter *hotbody.Hotter
 	hotter, err = hotbody.NewHotter(hotterConfig, client)
 	if err != nil {
-		hotbody.PrintError(goCmd, fmt.Errorf("something wrong: %v", err))
+		printError(goCmd, fmt.Errorf("something wrong: %v", err))
 	}
 
 	if _, err := hotter.GetAccount(kp.Address(), true); err != nil {
-		hotbody.PrintError(goCmd, fmt.Errorf("account of <secret seed> not found"))
+		printError(goCmd, fmt.Errorf("account of <secret seed> not found"))
 	}
 
 	if err := hotter.Start(); err != nil {

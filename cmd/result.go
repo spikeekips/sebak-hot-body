@@ -10,6 +10,7 @@ import (
 
 	"github.com/apcera/termtables"
 	"github.com/spf13/cobra"
+
 	"github.com/spikeekips/sebak-hot-body/hotbody"
 
 	"boscoin.io/sebak/lib/common"
@@ -41,17 +42,18 @@ func init() {
 }
 
 func parseResultFlags(args []string) {
+	var err error
+
+	setLogging()
+
 	if len(args) < 1 {
-		hotbody.PrintError(resultCmd, fmt.Errorf("<result output> is missing"))
+		printError(resultCmd, fmt.Errorf("<result output> is missing"))
 	}
 	flagResultOutput = args[0]
 
-	var err error
 	if resultOutput, err = os.Open(flagResultOutput); err != nil {
-		hotbody.PrintError(resultCmd, fmt.Errorf("failed to open <result output>; %v", err))
+		printError(resultCmd, fmt.Errorf("failed to open <result output>; %v", err))
 	}
-
-	parseLogging(resultCmd)
 
 	parsedFlags := []interface{}{}
 	parsedFlags = append(parsedFlags, "\n\tresult-log", flagResultOutput)
@@ -130,7 +132,7 @@ func runResult() {
 
 	var record hotbody.Record
 	if record, err = loadLine(headLine); err != nil {
-		hotbody.PrintError(resultCmd, fmt.Errorf("something wrong to read <result output>; %v; %v", err, headLine))
+		printError(resultCmd, fmt.Errorf("something wrong to read <result output>; %v; %v", err, headLine))
 	} else {
 		config = record.(hotbody.HotterConfig)
 	}
@@ -142,7 +144,7 @@ func runResult() {
 		s := sc.Text()
 
 		if record, err = loadLine(s); err != nil {
-			hotbody.PrintError(resultCmd, fmt.Errorf("something wrong to read <result output>; %v; %v", err, s))
+			printError(resultCmd, fmt.Errorf("something wrong to read <result output>; %v; %v", err, s))
 		} else if record == nil {
 			continue
 		}
@@ -154,8 +156,13 @@ func runResult() {
 	}
 	log.Debug("records loaded", "count", len(records))
 
+	if len(records) < 1 {
+		fmt.Println("no records found")
+		os.Exit(1)
+	}
+
 	if err = sc.Err(); err != nil {
-		hotbody.PrintError(resultCmd, fmt.Errorf("something wrong to read <result output>; %v", err))
+		printError(resultCmd, fmt.Errorf("something wrong to read <result output>; %v", err))
 	}
 
 	var maxElapsedTime float64

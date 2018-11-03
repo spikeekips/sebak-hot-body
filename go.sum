@@ -1,5 +1,7 @@
 boscoin.io/sebak v0.0.0-20181019075638-60031d050dbf h1:KOvB/tj+BUZtmw+xlI0Bm0ZS1mFGy634aS5GXosMnrQ=
 boscoin.io/sebak v0.0.0-20181019075638-60031d050dbf/go.mod h1:WtTID0FQ7el0l8p/zTmSjOEkTSEEBBsvGUAtrLhWET4=
+boscoin.io/sebak v0.0.0-20181030031729-5d1c009fd46a h1:p6l2xsjOdz8VDkkvn7BaQx99U0AGG8Lec+Epdw2efwc=
+boscoin.io/sebak v0.0.0-20181030031729-5d1c009fd46a/go.mod h1:WtTID0FQ7el0l8p/zTmSjOEkTSEEBBsvGUAtrLhWET4=
 github.com/GianlucaGuarini/go-observable v0.0.0-20180829201609-d386f0081a66 h1:ZCS9b8IUAsE0A4cFeD9nVEQwwzOMxC+PUDf9clvlrhM=
 github.com/GianlucaGuarini/go-observable v0.0.0-20180829201609-d386f0081a66/go.mod h1:2pqNiwoZ8Fj1HBGWyPTXW/iPD332sJzTp3Iy0dIcFMc=
 github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 h1:w1UutsfOrms1J05zt7ISrnJIXKzwaspym5BTKGx93EI=

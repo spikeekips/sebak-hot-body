@@ -14,10 +14,10 @@ import (
 	"github.com/stellar/go/keypair"
 
 	"boscoin.io/sebak/lib/common"
-	"boscoin.io/sebak/lib/error"
+	"boscoin.io/sebak/lib/errors"
 	"boscoin.io/sebak/lib/network"
-	"boscoin.io/sebak/lib/network/api"
 	"boscoin.io/sebak/lib/node"
+	"boscoin.io/sebak/lib/node/runner/api"
 	"boscoin.io/sebak/lib/transaction"
 	"boscoin.io/sebak/lib/transaction/operation"
 )
@@ -422,7 +422,7 @@ func (h *Hotter) payment(sourceKP *keypair.Full, amount common.Amount, targets .
 	)
 
 	if amount < 0 {
-		err = errors.ErrorOperationAmountUnderflow
+		err = errors.OperationAmountUnderflow
 		return
 	}
 

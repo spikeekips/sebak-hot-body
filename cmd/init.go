@@ -6,7 +6,6 @@ import (
 
 	logging "github.com/inconshreveable/log15"
 	"github.com/spf13/cobra"
-	"github.com/spikeekips/sebak-hot-body/hotbody"
 	"github.com/stellar/go/keypair"
 
 	"boscoin.io/sebak/lib/common"
@@ -59,7 +58,7 @@ var rootCmd = &cobra.Command{
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		hotbody.PrintFlagsError(rootCmd, "", err)
+		printFlagsError(rootCmd, "", err)
 	}
 }
 

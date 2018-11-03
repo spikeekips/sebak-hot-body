@@ -43,7 +43,6 @@ func init() {
 
 	now := time.Now().Format("20060102150405")
 	flagResultOutput = filepath.Join(currentDirectory, fmt.Sprintf("hot-body-result-%s.log", now))
-	flagLog = filepath.Join(currentDirectory, fmt.Sprintf("hot-body-%s.log", now))
 
 	goCmd.Flags().StringVar(&flagSEBAKEndpoint, "sebak", flagSEBAKEndpoint, "sebak endpoint")
 	goCmd.Flags().StringVar(&flagLogLevel, "log-level", flagLogLevel, "log level, {crit, error, warn, info, debug}")

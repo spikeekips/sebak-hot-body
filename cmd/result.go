@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"sort"
 	"time"
 
 	"github.com/apcera/termtables"
@@ -167,11 +168,17 @@ func runResult() {
 
 	var maxElapsedTime float64
 	var minElapsedTime float64 = -1
+	var step float64 = 50000000000
 
+	els := map[float64]int{}
 	var countError int
 	errorTypes := map[hotbody.RecordErrorType]int{}
 	for _, r := range records {
 		es := float64(r.GetElapsed())
+
+		i := int(es/step) * int(step)
+		els[float64(i)]++
+
 		maxElapsedTime = math.Max(maxElapsedTime, es)
 		if minElapsedTime < 0 {
 			minElapsedTime = es
@@ -186,18 +193,30 @@ func runResult() {
 		errorTypes[r.GetErrorType()]++
 	}
 
+	var elsKeys sort.IntSlice
+	for i := float64(0); i < ((maxElapsedTime/step)*step)+step; i += step {
+		if _, ok := els[i]; !ok {
+			els[i] = 0
+		}
+		elsKeys = append(elsKeys, int(i))
+	}
+
+	sort.Sort(elsKeys)
+
 	alignKey := func(s string) string {
 		return fmt.Sprintf("% 20s", s)
 	}
 
 	alignValue := func(v interface{}) string {
-		s := fmt.Sprintf("%v", v)
+		var s string
 		switch v.(type) {
 		case float64:
 			s = fmt.Sprintf("%15.10f", v)
+		default:
+			s = fmt.Sprintf("%v", v)
 		}
 
-		return fmt.Sprintf("% 30s", s)
+		return fmt.Sprintf("%30s", s)
 	}
 
 	alignHead := func(s string) string {
@@ -237,6 +256,7 @@ func runResult() {
 		table.AddRow("", alignKey("block height"), alignValue(config.Node.Block.Height))
 		table.AddRow("", alignKey("block hash"), alignValue(formatAddress(config.Node.Block.Hash)))
 		table.AddRow("", alignKey("block totaltxs"), alignValue(config.Node.Block.TotalTxs))
+		table.AddRow("", alignKey("block totalops"), alignValue(config.Node.Block.TotalOps))
 	}
 
 	lastTime := records[len(records)-1].GetTime()
@@ -266,6 +286,24 @@ func runResult() {
 		)
 		table.AddRow("", alignKey("max elapsed time"), alignValue(maxElapsedTime/float64(10000000000)))
 		table.AddRow("", alignKey("min elapsed time"), alignValue(minElapsedTime/float64(10000000000)))
+
+		table.AddRow("", alignKey("distribution"), "")
+		for _, e := range elsKeys {
+			span := int(float64(e) / float64(10000000000))
+			c := els[float64(e)]
+
+			table.AddRow(
+				"",
+				"",
+				alignValue(fmt.Sprintf(
+					"%2d-%-2d: %8.5f％ / %5d",
+					span,
+					span+int(step/float64(10000000000)),
+					float64(c)/float64(len(records))*100,
+					c,
+				)),
+			)
+		}
 
 		totalSeconds := lastTime.Sub(started).Seconds()
 

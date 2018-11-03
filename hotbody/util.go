@@ -76,10 +76,12 @@ func ParseRecordError(e map[string]interface{}) RecordErrorType {
 	{
 		var v interface{}
 		if v, found = e["code"]; found {
-			code := v.(float64)
-			if code != 163 {
-				return RecordErrorUnknown
-			}
+			/*
+				code := v.(float64)
+				if code != 163 {
+					return RecordErrorUnknown
+				}
+			*/
 
 			if v, found = e["data"]; !found {
 				return RecordErrorUnknown
@@ -87,11 +89,14 @@ func ParseRecordError(e map[string]interface{}) RecordErrorType {
 
 			b := v.(map[string]interface{})["body"]
 			if b == nil {
-				return RecordErrorUnknown
+				return RecordErrorType(fmt.Sprintf("sebak-error-%d", int(e["code"].(float64))))
 			}
 
 			if err := json.Unmarshal([]byte(b.(string)), &m); err != nil {
 				return RecordErrorUnknown
+			}
+			if _, found := m["type"]; !found {
+				return ParseRecordError(m)
 			}
 
 			return ParseRecordErrorHTTPProblem(m)

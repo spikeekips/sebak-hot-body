@@ -33,6 +33,7 @@ var (
 	flagTimeout               string = defaultTimeout
 	flagResultOutput          string
 	flagOperations            int = defaultOperations
+	flagBrief                 bool
 )
 
 var (

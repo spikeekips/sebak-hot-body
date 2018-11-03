@@ -38,6 +38,7 @@ func init() {
 	resultCmd.Flags().StringVar(&flagLogLevel, "log-level", flagLogLevel, "log level, {crit, error, warn, info, debug}")
 	resultCmd.Flags().StringVar(&flagLogFormat, "log-format", flagLogFormat, "log format, {terminal, json}")
 	resultCmd.Flags().StringVar(&flagLog, "log", flagLog, "set log file")
+	resultCmd.Flags().BoolVar(&flagBrief, "brief", flagBrief, "show only result")
 
 	rootCmd.AddCommand(resultCmd)
 }
@@ -227,29 +228,28 @@ func runResult() {
 		return fmt.Sprintf("%s...%s", s[:13], s[len(s)-13:])
 	}
 
-	var table *termtables.Table
+	table := termtables.CreateTable()
 
-	{
-		table = termtables.CreateTable()
+	if !flagBrief {
 		table.AddRow(alignHead("config"), alignKey("testing time"), alignValue(config.Timeout))
 		table.AddRow("", alignKey("concurrent requests"), alignValue(config.T))
 		table.AddRow("", alignKey("initial account"), alignValue(formatAddress(config.InitAccount)))
 		table.AddRow("", alignKey("request timeout"), alignValue(config.RequestTimeout))
 		table.AddRow("", alignKey("confirm duration"), alignValue(config.ConfirmDuration))
 		table.AddRow("", alignKey("operations"), alignValue(config.Operations))
+		table.AddSeparator()
 	}
 
-	{
-		table.AddSeparator()
+	if !flagBrief {
 		table.AddRow(alignHead("network"), alignKey("network id"), alignValue(config.Node.Policy.NetworkID))
 		table.AddRow("", alignKey("initial balance"), alignValue(config.Node.Policy.InitialBalance))
 		table.AddRow("", alignKey("block time"), alignValue(config.Node.Policy.BlockTime))
 		table.AddRow("", alignKey("base reserve"), alignValue(config.Node.Policy.BaseReserve))
 		table.AddRow("", alignKey("base fee"), alignValue(config.Node.Policy.BaseFee))
+		table.AddSeparator()
 	}
 
-	{
-		table.AddSeparator()
+	if !flagBrief {
 		table.AddRow(alignHead("node"), alignKey("endpoint"), alignValue(config.Node.Node.Endpoint))
 		table.AddRow("", alignKey("address"), alignValue(formatAddress(config.Node.Node.Address)))
 		table.AddRow("", alignKey("state"), alignValue(config.Node.Node.State))
@@ -257,19 +257,19 @@ func runResult() {
 		table.AddRow("", alignKey("block hash"), alignValue(formatAddress(config.Node.Block.Hash)))
 		table.AddRow("", alignKey("block totaltxs"), alignValue(config.Node.Block.TotalTxs))
 		table.AddRow("", alignKey("block totalops"), alignValue(config.Node.Block.TotalOps))
+		table.AddSeparator()
 	}
 
 	lastTime := records[len(records)-1].GetTime()
 
-	{
-		table.AddSeparator()
+	if !flagBrief {
 		table.AddRow(alignHead("time"), alignKey("started"), alignValue(FormatISO8601(started)))
 		table.AddRow("", alignKey("ended"), alignValue(FormatISO8601(lastTime)))
 		table.AddRow("", alignKey("total elapsed"), alignValue(lastTime.Sub(started)))
+		table.AddSeparator()
 	}
 
 	{
-		table.AddSeparator()
 		table.AddRow(alignHead("result"), alignKey("# requests"), alignValue(len(records)))
 		table.AddRow("", alignKey("# operations"), alignValue(len(records)*config.Operations))
 		table.AddRow(

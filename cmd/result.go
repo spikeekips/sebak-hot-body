@@ -111,6 +111,13 @@ func loadLine(l string) (record hotbody.Record, err error) {
 		}
 
 		record = payment
+	case "sebak-error":
+		var sebakError hotbody.RecordSEBAKError
+		if err = json.Unmarshal([]byte(l), &sebakError); err != nil {
+			return
+		}
+
+		record = sebakError
 	default:
 		err = fmt.Errorf("unknown type found: %v", recordType)
 		return
@@ -142,6 +149,7 @@ func runResult() {
 
 	log.Debug("trying to load record")
 	var records []hotbody.Record
+	sebakErrors := map[int]int{}
 	for sc.Scan() {
 		s := sc.Text()
 
@@ -151,6 +159,14 @@ func runResult() {
 			continue
 		}
 		if record.GetType() != "payment" {
+			if sr, ok := record.(hotbody.RecordSEBAKError); ok {
+				j := sr.GetRawError()["data"].(map[string]interface{})["body"].(string)
+
+				var body map[string]interface{}
+				json.Unmarshal([]byte(j), &body)
+				sebakErrors[int(body["code"].(float64))]++
+			}
+
 			continue
 		}
 
@@ -335,6 +351,41 @@ func runResult() {
 							fmt.Sprintf(
 								"%.5f％",
 								float64(errorCount)/float64(countError)*100,
+							),
+						),
+					),
+				)
+			}
+		}
+	}
+
+	{
+		table.AddSeparator()
+		if len(sebakErrors) < 1 {
+			table.AddRow(alignHead("sebak-error"), alignKey("no error"), "")
+		} else {
+			var countSEBAKError int
+			for _, errorCount := range sebakErrors {
+				countSEBAKError += errorCount
+			}
+
+			var c int
+			for errorType, errorCount := range sebakErrors {
+				h := ""
+				if c == 0 {
+					h = alignHead("sebak-error")
+				}
+				c++
+				table.AddRow(
+					h,
+					alignKey(fmt.Sprintf("sebak-error-%d", int(errorType))),
+					alignValue(
+						fmt.Sprintf(
+							"%d | % 10s",
+							errorCount,
+							fmt.Sprintf(
+								"%.5f％",
+								float64(errorCount)/float64(countSEBAKError)*100,
 							),
 						),
 					),

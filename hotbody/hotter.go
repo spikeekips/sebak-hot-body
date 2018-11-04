@@ -3,6 +3,7 @@ package hotbody
 import (
 	"fmt"
 	"math"
+	"math/rand"
 	"net"
 	"net/url"
 	"os"
@@ -80,7 +81,7 @@ type Hotter struct {
 	HotterConfig
 
 	result          *Result
-	client          *HTTP2Client
+	clients         []*HTTP2Client
 	keys            map[string]*keypair.Full
 	createdAccounts []string
 	runningAccounts *RunningAccounts
@@ -90,11 +91,11 @@ type Hotter struct {
 
 func NewHotter(
 	config HotterConfig,
-	client *HTTP2Client,
+	clients []*HTTP2Client,
 ) (hotter *Hotter, err error) {
 	hotter = &Hotter{
 		HotterConfig: config,
-		client:       client,
+		clients:      clients,
 		keys: map[string]*keypair.Full{
 			config.KP.Address(): config.KP,
 		},
@@ -245,6 +246,10 @@ func (h *Hotter) Start() (err error) {
 	return
 }
 
+func (h *Hotter) Client() *HTTP2Client {
+	return h.clients[rand.Intn(3)%len(h.clients)]
+}
+
 func (h *Hotter) NewKeypair() *keypair.Full {
 	k, _ := keypair.Random()
 
@@ -269,7 +274,7 @@ func (h *Hotter) GetAccount(address string, ignoreLog bool) (ac BlockAccount, er
 
 	var b []byte
 	for i := 0; i < 3; i++ {
-		if b, err = h.client.Get(url, nil); err != nil {
+		if b, err = h.Client().Get(url, nil); err != nil {
 			if !ignoreLog {
 				log_.Error("failed", "error", err)
 			}
@@ -304,7 +309,7 @@ func (h *Hotter) GetTransaction(hash string, ignoreLog bool) (ctx Transaction, e
 	log_.Debug("starting", "url", url)
 
 	var b []byte
-	if b, err = h.client.Get(url, nil); err != nil {
+	if b, err = h.Client().Get(url, nil); err != nil {
 		if !ignoreLog {
 			log_.Error("failed", "error", err)
 		}
@@ -372,11 +377,27 @@ func (h *Hotter) createAccounts(sourceKP *keypair.Full, amount common.Amount, ta
 	log_.Debug("transaction created", "transaction", tx.GetHash())
 
 	defer func(t time.Time, l logging.Logger) {
+		if e, ok := err.(*errors.Error); ok && e.Code == 163 {
+			h.result.Write(
+				"sebak-error",
+				"when", "create-account",
+				"elapsed", ElapsedTime(t),
+				"count", len(targets),
+				"addresses", targets,
+				"amount", amount,
+				"source", sourceKP.Address(),
+				"transaction", tx.GetHash(),
+				"error", err,
+			)
+			return
+		}
+
 		h.result.Write(
 			"create-accounts",
 			"elapsed", ElapsedTime(t),
 			"count", len(targets),
 			"addresses", targets,
+			"transaction", tx.GetHash(),
 			"error", err,
 		)
 	}(time.Now(), log_)
@@ -393,7 +414,7 @@ func (h *Hotter) createAccounts(sourceKP *keypair.Full, amount common.Amount, ta
 			break
 		}
 		err = nil
-		time.Sleep(time.Duration(300) * time.Millisecond)
+		time.Sleep(time.Duration(600) * time.Millisecond)
 	}
 
 	log_.Debug(
@@ -452,6 +473,21 @@ func (h *Hotter) payment(sourceKP *keypair.Full, amount common.Amount, targets .
 	log_.Debug("transaction created", "transaction", tx.GetHash())
 
 	defer func(t time.Time, l logging.Logger) {
+		if e, ok := err.(*errors.Error); ok && e.Code == 163 {
+			h.result.Write(
+				"sebak-error",
+				"when", "payment",
+				"elapsed", ElapsedTime(t),
+				"count", len(targets),
+				"addresses", targets,
+				"amount", amount,
+				"source", sourceKP.Address(),
+				"transaction", tx.GetHash(),
+				"error", err,
+			)
+			return
+		}
+
 		h.result.Write(
 			"payment",
 			"elapsed", ElapsedTime(t),
@@ -459,6 +495,7 @@ func (h *Hotter) payment(sourceKP *keypair.Full, amount common.Amount, targets .
 			"addresses", targets,
 			"amount", amount,
 			"source", sourceKP.Address(),
+			"transaction", tx.GetHash(),
 			"error", err,
 		)
 	}(time.Now(), log_)
@@ -513,7 +550,7 @@ func (h *Hotter) sendTransaction(tx transaction.Transaction) (err error) {
 
 	retries := 3
 	for i := 0; i < 3; i++ { // retry
-		b, err = h.client.Post(network.UrlPathPrefixNode+"/message", body, nil)
+		b, err = h.Client().Post(network.UrlPathPrefixNode+"/message", body, nil)
 
 		if err != nil {
 			if i == retries-1 {
@@ -564,6 +601,10 @@ func (h *Hotter) sendTransaction(tx transaction.Transaction) (err error) {
 
 func (h *Hotter) request(address string) (err error) {
 	account, _ := h.GetAccount(address, true)
+	if account.Empty() {
+		err = fmt.Errorf("failed to get account: %v", address)
+		return
+	}
 
 	var addresses []string
 	for {

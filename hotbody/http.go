@@ -59,6 +59,10 @@ func NewHTTP2Client(timeout time.Duration, url *url.URL, headers http.Header) (h
 	return
 }
 
+func (client *HTTP2Client) URL() *url.URL {
+	return client.url
+}
+
 func (client *HTTP2Client) Transport() *http.Transport {
 	return client.transport
 }

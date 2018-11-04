@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"boscoin.io/sebak/lib/common"
@@ -73,12 +74,14 @@ func parseGoFlags(args []string) {
 		}
 	}
 
-	if p, err := common.ParseEndpoint(flagSEBAKEndpoint); err != nil {
-		printFlagsError(goCmd, "--sebak", err)
-	} else {
-		sebakEndpoint = p
-		flagSEBAKEndpoint = sebakEndpoint.String()
+	for _, i := range strings.Split(flagSEBAKEndpoint, ",") {
+		if p, err := common.ParseEndpoint(i); err != nil {
+			printFlagsError(goCmd, "--sebak", err)
+		} else {
+			sebakEndpoints = append(sebakEndpoints, p)
+		}
 	}
+
 	if flagConcurrentTransaction < 1 {
 		printFlagsError(goCmd, "--concurrent", errors.New("at least bigger than 0"))
 	}
@@ -123,36 +126,42 @@ func runGo() {
 	var err error
 
 	// request node info to sebak
-	var client *hotbody.HTTP2Client
-
 	headers := http.Header{}
 	headers.Set("Content-Type", "application/json")
 	headers.Set("User-Agent", "sebak-hot-body/v1.0")
 
-	client, err = hotbody.NewHTTP2Client(
-		requestTimeout,
-		(*url.URL)(sebakEndpoint),
-		headers,
-	)
-	if err != nil {
-		printError(goCmd, fmt.Errorf("failed to create HTTP2Client: %v", err))
+	var clients []*hotbody.HTTP2Client
+	for _, i := range sebakEndpoints {
+		var client *hotbody.HTTP2Client
+		client, err = hotbody.NewHTTP2Client(
+			requestTimeout,
+			(*url.URL)(i),
+			headers,
+		)
+		if err != nil {
+			printError(goCmd, fmt.Errorf("failed to create HTTP2Client: %v", err))
+		}
+		client.Transport().MaxIdleConnsPerHost = flagConcurrentTransaction + 100
+		clients = append(clients, client)
 	}
-	client.Transport().MaxIdleConnsPerHost = flagConcurrentTransaction
 
-	var b []byte
-	if b, err = client.Get("/", nil); err != nil {
-		printFlagsError(goCmd, "--sebak", err)
-	}
+	var nodeInfo node.NodeInfo
+	for _, client := range clients {
+		var b []byte
+		if b, err = client.Get("/", nil); err != nil {
+			printFlagsError(goCmd, "--sebak", err)
+		}
 
-	if nodeInfo, err = node.NewNodeInfoFromJSON(b); err != nil {
-		printError(goCmd, fmt.Errorf("failed to parse node info response: %v", err))
-	}
-	log.Debug("sebak info", "sebak", sebakEndpoint.String())
-	log.Debug(fmt.Sprintf(
-		`================================================================================
+		if nodeInfo, err = node.NewNodeInfoFromJSON(b); err != nil {
+			printError(goCmd, fmt.Errorf("failed to parse node info response: %v", err))
+		}
+		log.Debug("sebak info", "sebak", client.URL())
+		log.Debug(fmt.Sprintf(
+			`================================================================================
 %s
 ================================================================================
 `, b))
+	}
 
 	hotterConfig := hotbody.HotterConfig{
 		Node:            nodeInfo,
@@ -167,7 +176,7 @@ func runGo() {
 	}
 
 	var hotter *hotbody.Hotter
-	hotter, err = hotbody.NewHotter(hotterConfig, client)
+	hotter, err = hotbody.NewHotter(hotterConfig, clients)
 	if err != nil {
 		printError(goCmd, fmt.Errorf("something wrong: %v", err))
 	}

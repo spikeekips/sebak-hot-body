@@ -37,7 +37,7 @@ var (
 )
 
 var (
-	sebakEndpoint   *common.Endpoint
+	sebakEndpoints  []*common.Endpoint
 	logLevel        logging.Lvl
 	log             logging.Logger = logging.New("module", "hot-body")
 	nodeInfo        node.NodeInfo

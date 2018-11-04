@@ -51,6 +51,10 @@ func NewAccountFromJSON(b []byte) (ac BlockAccount, err error) {
 	return
 }
 
+func (ac BlockAccount) Empty() bool {
+	return len(ac.Address) < 1
+}
+
 func (ac BlockAccount) Serialize() ([]byte, error) {
 	return json.Marshal(ac)
 }
@@ -322,5 +326,45 @@ func (r RecordPayment) GetError() error {
 }
 
 func (r RecordPayment) GetErrorType() RecordErrorType {
+	return ParseRecordError(r.Error)
+}
+
+type RecordSEBAKError struct {
+	Time      string                 `json:"time"`
+	Type      string                 `json:"type"`
+	Addresses []string               `json:"addresses"`
+	Count     uint64                 `json:"count"`
+	Elapsed   string                 `json:"elapsed"`
+	Error     map[string]interface{} `json:"error"`
+	when      string                 `json:"when"`
+}
+
+func (r RecordSEBAKError) GetTime() time.Time {
+	t, _ := common.ParseISO8601(r.Time)
+	return t
+}
+
+func (r RecordSEBAKError) GetType() string {
+	return r.Type
+}
+
+func (r RecordSEBAKError) GetElapsed() int64 {
+	p, _ := ParseRecordElapsedTime(r.Elapsed)
+	return p
+}
+
+func (r RecordSEBAKError) GetRawError() map[string]interface{} {
+	return r.Error
+}
+
+func (r RecordSEBAKError) GetError() error {
+	if len(r.Error) < 1 {
+		return nil
+	}
+
+	return fmt.Errorf("%v", r.Error)
+}
+
+func (r RecordSEBAKError) GetErrorType() RecordErrorType {
 	return ParseRecordError(r.Error)
 }

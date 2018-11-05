@@ -376,22 +376,24 @@ func (h *Hotter) createAccounts(sourceKP *keypair.Full, amount common.Amount, ta
 	tx.Sign(sourceKP, []byte(h.Node.Policy.NetworkID))
 	log_.Debug("transaction created", "transaction", tx.GetHash())
 
-	defer func(t time.Time, l logging.Logger) {
-		if e, ok := err.(*errors.Error); ok && e.Code == 163 {
-			h.result.Write(
-				"sebak-error",
-				"when", "create-account",
-				"elapsed", ElapsedTime(t),
-				"count", len(targets),
-				"addresses", targets,
-				"amount", amount,
-				"source", sourceKP.Address(),
-				"transaction", tx.GetHash(),
-				"error", err,
-			)
-			return
-		}
+	if err = h.sendTransaction(tx); err != nil {
+		log_.Error("failed to send transaction", "error", err)
 
+		h.result.Write(
+			"sebak-error",
+			"when", "create-account",
+			"count", len(targets),
+			"addresses", targets,
+			"amount", amount,
+			"source", sourceKP.Address(),
+			"transaction", tx.GetHash(),
+			"error", err,
+		)
+
+		return
+	}
+
+	defer func(t time.Time, l logging.Logger) {
 		h.result.Write(
 			"create-accounts",
 			"elapsed", ElapsedTime(t),
@@ -401,11 +403,6 @@ func (h *Hotter) createAccounts(sourceKP *keypair.Full, amount common.Amount, ta
 			"error", err,
 		)
 	}(time.Now(), log_)
-
-	if err = h.sendTransaction(tx); err != nil {
-		log_.Error("failed to send transaction", "error", err)
-		return
-	}
 
 	// check transaction is stored in block
 	var ctx Transaction
@@ -472,22 +469,23 @@ func (h *Hotter) payment(sourceKP *keypair.Full, amount common.Amount, targets .
 	tx.Sign(sourceKP, []byte(h.Node.Policy.NetworkID))
 	log_.Debug("transaction created", "transaction", tx.GetHash())
 
-	defer func(t time.Time, l logging.Logger) {
-		if e, ok := err.(*errors.Error); ok && e.Code == 163 {
-			h.result.Write(
-				"sebak-error",
-				"when", "payment",
-				"elapsed", ElapsedTime(t),
-				"count", len(targets),
-				"addresses", targets,
-				"amount", amount,
-				"source", sourceKP.Address(),
-				"transaction", tx.GetHash(),
-				"error", err,
-			)
-			return
-		}
+	if err = h.sendTransaction(tx); err != nil {
+		log_.Error("failed to send transaction", "error", err)
 
+		h.result.Write(
+			"sebak-error",
+			"when", "payment",
+			"count", len(targets),
+			"addresses", targets,
+			"amount", amount,
+			"source", sourceKP.Address(),
+			"transaction", tx.GetHash(),
+			"error", err,
+		)
+		return
+	}
+
+	defer func(t time.Time, l logging.Logger) {
 		h.result.Write(
 			"payment",
 			"elapsed", ElapsedTime(t),
@@ -499,11 +497,6 @@ func (h *Hotter) payment(sourceKP *keypair.Full, amount common.Amount, targets .
 			"error", err,
 		)
 	}(time.Now(), log_)
-
-	if err = h.sendTransaction(tx); err != nil {
-		log_.Error("failed to send transaction", "error", err)
-		return
-	}
 
 	// check transaction is stored in block
 	done := make(chan Transaction)

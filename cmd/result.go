@@ -160,10 +160,18 @@ func runResult() {
 		}
 		if record.GetType() != "payment" {
 			if sr, ok := record.(hotbody.RecordSEBAKError); ok {
-				j := sr.GetRawError()["data"].(map[string]interface{})["body"].(string)
+				e := sr.GetRawError()
+				if _, ok := e["data"]; !ok {
+					continue
+				}
+
+				j := e["data"].(map[string]interface{})["body"].(string)
 
 				var body map[string]interface{}
 				json.Unmarshal([]byte(j), &body)
+				if _, ok := body["code"]; !ok {
+					continue
+				}
 				sebakErrors[int(body["code"].(float64))]++
 			}
 

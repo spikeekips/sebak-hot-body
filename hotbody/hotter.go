@@ -543,7 +543,11 @@ func (h *Hotter) sendTransaction(tx transaction.Transaction) (err error) {
 
 	retries := 3
 	for i := 0; i < 3; i++ { // retry
-		b, err = h.Client().Post(network.UrlPathPrefixNode+"/message", body, nil)
+		b, err = h.Client().Post(
+			fmt.Sprintf("%s/%s/transactions", network.UrlPathPrefixAPI, api.APIVersionV1),
+			body,
+			nil,
+		)
 
 		if err != nil {
 			if i == retries-1 {
